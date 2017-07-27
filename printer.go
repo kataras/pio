@@ -211,14 +211,39 @@ func (p *Printer) WithMarshalers(marshalers ...Marshaler) *Printer {
 
 // AddOutput adds one or more io.Writer to the Printer.
 //
-// Look `OutputFrom` too.
+// Look `OutputFrom` and `Wrap` too.
 func (p *Printer) AddOutput(writers ...io.Writer) {
-	l := []io.Writer{p.Output}
-	w := io.MultiWriter(append(l, writers...)...)
-
 	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, w := range writers {
+		// set is terminal to false
+		// if at least one of the writers
+		// is not a terminal-based.
+		if !terminal.IsTerminal(w) {
+			p.IsTerminal = false
+			break
+		}
+	}
+
+	w := io.MultiWriter(append(writers, p.Output)...)
 	p.Output = w
-	p.mu.Unlock()
+
+	// p.mu.Lock()
+	// oldW := p.Output
+	// newW := io.MultiWriter(writers...)
+	// p.Output = writerFunc(func(p []byte) (n int, err error) {
+	// 	n, err = oldW.Write(p)
+	// 	if err != nil {
+	// 		return
+	// 	}
+	// 	if n != len(p) {
+	// 		err = io.ErrShortWrite
+	// 		return
+	// 	}
+	// 	return newW.Write(p)
+	// })
+	// p.mu.Unlock()
 }
 
 // SetOutput sets accepts one or more io.Writer
@@ -237,6 +262,7 @@ func (p *Printer) SetOutput(writers ...io.Writer) {
 
 	p.mu.Lock()
 	p.Output = w
+	p.IsTerminal = terminal.IsTerminal(w)
 	p.mu.Unlock()
 }
 
@@ -342,7 +368,9 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer) ([]byte, error) {
 		// if not skip this WriteTo operation,
 		// else set the marshaler to that (most common).
 	} else {
-		marshaler = p.marshal
+		if p.marshal != nil {
+			marshaler = p.marshal
+		}
 	}
 
 	var (
@@ -372,6 +400,7 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer) ([]byte, error) {
 		if marshaler == nil {
 			return nil, ErrSkipped
 		}
+
 		b, err = marshaler.Marshal(v)
 		if err != nil {
 			return b, err

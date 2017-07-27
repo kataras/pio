@@ -12,6 +12,12 @@ type (
 	printlnFunc       func(string)
 )
 
+type writerFunc func([]byte) (int, error)
+
+func (w writerFunc) Write(p []byte) (n int, err error) {
+	return w(p)
+}
+
 // Wrap returns a new output based on the "printfFn"
 // if not a compatible output found then it will
 // return a writer which writes nothing.
@@ -27,6 +33,10 @@ type (
 //}
 func Wrap(printFn interface{}) io.Writer {
 	switch printFn.(type) {
+	case io.Writer:
+		return printFn.(io.Writer)
+	case writerFunc:
+		return printFn.(io.Writer)
 	case printFunc:
 		return OutputFrom.Print(printFn.(printFunc))
 	case printVariadicFunc:
@@ -35,6 +45,7 @@ func Wrap(printFn interface{}) io.Writer {
 		return OutputFrom.Printf(printFn.(printfFunc))
 	case printlnFunc:
 		return OutputFrom.Println(printFn.(printlnFunc), false)
+
 	}
 
 	return NopOutput()
