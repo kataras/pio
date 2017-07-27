@@ -45,6 +45,10 @@ type Printer struct {
 	io.Reader
 	io.Writer
 	io.Closer
+	// DirectOutput will output the contents and flush them as fast as possible,
+	// without storing them to the buffer to complete the `ReadWriteCloser` std interface.
+	// Enable this if you need performance and you don't use the standard functions like `TeeReader`.
+	DirectOutput bool
 }
 
 var (
@@ -210,9 +214,10 @@ func (p *Printer) WithMarshalers(marshalers ...Marshaler) *Printer {
 }
 
 // AddOutput adds one or more io.Writer to the Printer.
+// Returns itself.
 //
 // Look `OutputFrom` and `Wrap` too.
-func (p *Printer) AddOutput(writers ...io.Writer) {
+func (p *Printer) AddOutput(writers ...io.Writer) *Printer {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -228,6 +233,7 @@ func (p *Printer) AddOutput(writers ...io.Writer) {
 
 	w := io.MultiWriter(append(writers, p.Output)...)
 	p.Output = w
+	return p
 
 	// p.mu.Lock()
 	// oldW := p.Output
@@ -248,12 +254,13 @@ func (p *Printer) AddOutput(writers ...io.Writer) {
 
 // SetOutput sets accepts one or more io.Writer
 // and set a multi-writter instance to the Printer's Output.
+// Returns itself.
 //
 // Look `OutputFrom` too.
-func (p *Printer) SetOutput(writers ...io.Writer) {
+func (p *Printer) SetOutput(writers ...io.Writer) *Printer {
 	var w io.Writer
 	if l := len(writers); l == 0 {
-		return
+		return p
 	} else if l == 1 {
 		w = writers[0]
 	} else {
@@ -264,6 +271,18 @@ func (p *Printer) SetOutput(writers ...io.Writer) {
 	p.Output = w
 	p.IsTerminal = terminal.IsTerminal(w)
 	p.mu.Unlock()
+	return p
+}
+
+// EnableDirectOutput will output the contents and flush them as fast as possible,
+// without storing them to the buffer to complete the `ReadWriteCloser` std interface.
+// Enable this if you need performance and you don't use the standard functions like `TeeReader`.
+// Returns itself.
+func (p *Printer) EnableDirectOutput() *Printer {
+	p.mu.Lock()
+	p.DirectOutput = true
+	p.mu.Unlock()
+	return p
 }
 
 // Print of a Printer accepts a value of "v",
@@ -289,11 +308,19 @@ func (p *Printer) Println(v interface{}) (int, error) {
 }
 
 func (p *Printer) print(v interface{}, appendNewLine bool) (int, error) {
-	err := p.Store(v, appendNewLine) // write to the buffer
-	if err != nil {
-		return -1, err
+	var (
+		b   []byte
+		err error
+	)
+	if p.DirectOutput {
+		b, err = p.WriteTo(v, p.Output, appendNewLine)
+	} else {
+		err = p.Store(v, appendNewLine) // write to the buffer
+		if err != nil {
+			return -1, err
+		}
+		b, err = p.Flush()
 	}
-	b, err := p.Flush()
 
 	// flush error return last,
 	// we should call handlers even if the result is a failure.
@@ -344,10 +371,7 @@ func (p *Printer) Flush() ([]byte, error) {
 // returning PrintResult, therefore the "appendNewLine" it is not affect the rest
 // of the implementation like custom hijackers and handlers.
 func (p *Printer) Store(v interface{}, appendNewLine bool) error {
-	_, err := p.WriteTo(v, p.Writer)
-	if appendNewLine && err == nil {
-		p.Writer.Write(newLine) // we don't care about this error.
-	}
+	_, err := p.WriteTo(v, p.Writer, appendNewLine)
 
 	return err
 }
@@ -355,7 +379,7 @@ func (p *Printer) Store(v interface{}, appendNewLine bool) error {
 // WriteTo marshals and writes the "v" to the "w" writer.
 //
 // Returns this WriteTo's result information such as error, written.
-func (p *Printer) WriteTo(v interface{}, w io.Writer) ([]byte, error) {
+func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byte, error) {
 	var marshaler Marshaler
 
 	// check if implements the Marshaled
@@ -408,7 +432,9 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer) ([]byte, error) {
 	}
 
 	_, err = w.Write(b)
-
+	if appendNewLine && err == nil {
+		w.Write(newLine) // we don't care about this error.
+	}
 	return b, err
 }
 
