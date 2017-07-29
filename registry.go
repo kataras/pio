@@ -1,12 +1,10 @@
 package pio
 
 import (
-	"bufio"
 	"errors"
 	"io"
 	"sort"
 	"sync"
-	"sync/atomic"
 )
 
 // Registry is the Printer(s) container.
@@ -153,7 +151,7 @@ func (reg *Registry) printAll(v interface{}, appendNewLine bool) (n int, err err
 func combineOutputResult(n int, err error, prevErr error) (totalN int, totalErr error) {
 	if err != nil {
 		if prevErr != nil {
-			totalErr = errors.New(prevErr.Error() + "\n" + err.Error())
+			totalErr = errors.New(prevErr.Error() + string(NewLine) + err.Error())
 		}
 	}
 
@@ -165,39 +163,21 @@ func combineOutputResult(n int, err error, prevErr error) (totalN int, totalErr 
 // its new contents to the printers,
 // forever or until the returning "cancel" is fired, once.
 func (reg *Registry) Scan(r io.Reader, addNewLine bool) (cancel func()) {
-	var canceled uint32
-	shouldCancel := func() bool {
-		return atomic.LoadUint32(&canceled) > 0
+	lp := len(reg.printers)
+	if lp == 0 {
+		return func() {}
 	}
+
+	cancelFuncs := make([]func(), lp, lp)
 	cancel = func() {
-		atomic.StoreUint32(&canceled, 1)
+		for _, c := range cancelFuncs {
+			c()
+		}
 	}
 
-	go func() {
-		scanner := bufio.NewScanner(r)
-
-		for {
-			if shouldCancel() {
-				break
-			}
-			if scanner.Scan() {
-				if shouldCancel() {
-					// re-store the bytes?
-					reg.restore(scanner.Bytes())
-					break
-				}
-				text := scanner.Text()
-				if addNewLine {
-					text += "\n"
-				}
-				reg.Print(text)
-			}
-
-			if err := scanner.Err(); err != nil {
-				// TODO: do something with that or ignore it.
-			}
-		}
-	}()
+	for i, p := range reg.printers {
+		cancelFuncs[i] = p.Scan(r, addNewLine)
+	}
 
 	return cancel
 }

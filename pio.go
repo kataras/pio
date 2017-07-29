@@ -4,6 +4,12 @@ import (
 	"io"
 )
 
+// NewLine is a slice of bytes which controls the
+// how a new line should be presented.
+//
+// Defaults to \n.
+var NewLine = []byte("\n")
+
 // Default returns the default, package-level registry instance.
 var Default = NewRegistry()
 

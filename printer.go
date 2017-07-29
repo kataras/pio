@@ -433,7 +433,7 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byt
 
 	_, err = w.Write(b)
 	if appendNewLine && err == nil {
-		w.Write(newLine) // we don't care about this error.
+		w.Write(NewLine) // we don't care about this error.
 	}
 	return b, err
 }
@@ -558,9 +558,9 @@ func (p *Printer) Scan(r io.Reader, addNewLine bool) (cancel func()) {
 					p.restore(scanner.Bytes())
 					break
 				}
-				text := scanner.Text()
+				text := scanner.Bytes()
 				if addNewLine {
-					text += "\n"
+					text = append(text, NewLine...)
 				}
 				p.Print(text)
 			}

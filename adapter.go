@@ -124,11 +124,9 @@ func (p *printfAdapter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-var newLine = []byte("\n")
-
 func (p *printlnAdapter) Write(b []byte) (int, error) {
 	if p.newLine {
-		b = append(b, newLine...)
+		b = append(b, NewLine...)
 	}
 	p.println(string(b))
 	return len(b), nil

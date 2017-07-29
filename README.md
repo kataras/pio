@@ -5,8 +5,8 @@ PIO [_Pill for Input/Output_] tries to cure headaches by solving problems where 
 [![build status](https://img.shields.io/travis/kataras/pio/master.svg?style=flat-square)](https://travis-ci.org/kataras/pio)
 [![report card](https://img.shields.io/badge/report%20card-a%2B-ff3333.svg?style=flat-square)](http://goreportcard.com/report/kataras/pio)
 [![godocs](https://img.shields.io/badge/online-documentation-0366d6.svg?style=flat-square)](https://godoc.org/github.com/kataras/pio)
-[![github issues](https://img.shields.io/github/issues/kataras/pio.svg)](https://github.com/kataras/pio/issues?q=is%3Aopen+is%3Aissue)
-[![github closed issues](https://img.shields.io/github/issues-closed/kataras/pio.svg)](https://github.com/kataras/pio/issues?q=is%3Aissue+is%3Aclosed)
+[![github issues](https://img.shields.io/github/issues/kataras/pio.svg?style=flat-square)](https://github.com/kataras/pio/issues?q=is%3Aopen+is%3Aissue)
+[![github closed issues](https://img.shields.io/github/issues-closed-raw/kataras/pio.svg?style=flat-square)](https://github.com/kataras/pio/issues?q=is%3Aissue+is%3Aclosed)
 
 - it can combine all your loggers as one
 - it can scan from any source and print
@@ -15,6 +15,8 @@ PIO [_Pill for Input/Output_] tries to cure headaches by solving problems where 
 Navigate through [_examples](_examples/) and [integrations](_examples/integrations/) to learn if can cure yours too.
 
 ### 🚀 Installation
+
+The only requirement is the Go Programming Language[*](https://golang.org).
 
 ```bash
 $ go get github.com/kataras/pio
