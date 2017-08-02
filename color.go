@@ -58,6 +58,14 @@ func Red(s string) string {
 	return colorize(ColorRed, s)
 }
 
+// ColorRedBackground represents a white foreground color and red background.
+var ColorRedBackground = 41
+
+// RedBackground returns the string contents of "s" wrapped by white foreground color and red background.
+func RedBackground(s string) string {
+	return colorize(ColorRedBackground, s)
+}
+
 // ColorGreen represents the green color.
 var ColorGreen = 32
 
