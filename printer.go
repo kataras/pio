@@ -84,13 +84,15 @@ func NewPrinter(name string, output io.Writer) *Printer {
 
 	buf := &bytes.Buffer{}
 
+	isTerminal := isTerminal(output)
+
 	p := &Printer{
 		Name:       name,
 		Output:     output,
 		Writer:     buf,
 		Reader:     buf,
 		Closer:     NopCloser(),
-		IsTerminal: !IsNop(output) || terminal.IsTerminal(output),
+		IsTerminal: isTerminal,
 	}
 
 	// If "output" is terminal then a text marshaler will be
