@@ -12,11 +12,11 @@ import (
 
 func isTerminal(output io.Writer) bool {
 	isTerminal := !IsNop(output) || terminal.IsTerminal(output)
-	if isTerminal {
-		return true
-	}
-	if runtime.GOOS != "windows" {
-		return false
+
+	// if it's not a terminal and the os is not a windows one,
+	// then return whatever already found.
+	if !isTerminal || runtime.GOOS != "windows" {
+		return isTerminal
 	}
 
 	// check specific for windows operating system
@@ -42,6 +42,9 @@ func isTerminal(output io.Writer) bool {
 	end := strings.IndexByte(lines, ']')
 
 	winLine := lines[start+1 : end]
+	if len(winLine) < 10 {
+		return false
+	}
 	// Version 10.0.15063
 	versionsLine := winLine[strings.IndexByte(winLine, ' ')+1:]
 	// 10.0.15063
