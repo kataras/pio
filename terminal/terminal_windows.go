@@ -27,7 +27,7 @@ const (
 	enableVirtualTerminalProcessing = 0x0004
 )
 
-func getVersion() (float64, error) {
+func getVersion() (float64, int, error) {
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 	cmd := exec.Command("cmd", "ver")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
@@ -35,7 +35,7 @@ func getVersion() (float64, error) {
 	cmd.Stderr = stderr
 	err := cmd.Run()
 	if err != nil {
-		return -1, err
+		return -1, -1, err
 	}
 
 	errCanNotDetermineVersion := errors.New("can't determine Windows version")
@@ -43,12 +43,12 @@ func getVersion() (float64, error) {
 	start := strings.IndexByte(lines, '[')
 	end := strings.IndexByte(lines, ']')
 	if start == -1 || end == -1 {
-		return -1, errCanNotDetermineVersion
+		return -1, -1, errCanNotDetermineVersion
 	}
 
 	winLine := lines[start+1 : end]
 	if len(winLine) < 10 {
-		return -1, errCanNotDetermineVersion
+		return -1, -1, errCanNotDetermineVersion
 	}
 	// Version 10.0.15063
 	versionsLine := winLine[strings.IndexByte(winLine, ' ')+1:]
@@ -58,23 +58,32 @@ func getVersion() (float64, error) {
 	// 0
 	// 15063
 	if len(versionSems) < 3 {
-		return -1, errCanNotDetermineVersion
+		return -1, -1, errCanNotDetermineVersion
 	}
 
-	return strconv.ParseFloat(versionSems[0], 64)
+	buildNumber, _ := strconv.Atoi(versionSems[2])
+	major, err := strconv.ParseFloat(versionSems[0], 64)
+	return major, buildNumber, err
 }
 
-func init() {
-	ver, err := getVersion()
+func init() { // modifies the "SupportColors" package-level variable.
+	SupportColors = false
+
+	major, buildNumber, err := getVersion()
 	if err != nil {
 		return
 	}
 
 	// Activate Virtual Processing for Windows CMD
 	// Info: https://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
-	if ver >= 10 {
+	if major >= 10 {
 		handle := syscall.Handle(os.Stderr.Fd())
 		procSetConsoleMode.Call(uintptr(handle), enableProcessedOutput|enableWrapAtEolOutput|enableVirtualTerminalProcessing)
+
+		// check specific for windows operating system
+		// versions, after windows 10 microsoft
+		// gave support for 256-color console.
+		SupportColors = buildNumber >= 10586
 	}
 }
 
