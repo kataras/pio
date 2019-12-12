@@ -36,13 +36,18 @@ func getVersion() (float64, error) {
 	if err != nil {
 		return -1, err
 	}
+
+	errCanNotDetermineVersion := errors.New("can't determine Windows version")
 	lines := stdout.String()
 	start := strings.IndexByte(lines, '[')
 	end := strings.IndexByte(lines, ']')
+	if start == -1 || end == -1 {
+		return -1, errCanNotDetermineVersion
+	}
 
 	winLine := lines[start+1 : end]
 	if len(winLine) < 10 {
-		return -1, errors.New("can't determine Windows version")
+		return -1, errCanNotDetermineVersion
 	}
 	// Version 10.0.15063
 	versionsLine := winLine[strings.IndexByte(winLine, ' ')+1:]
@@ -52,7 +57,7 @@ func getVersion() (float64, error) {
 	// 0
 	// 15063
 	if len(versionSems) < 3 {
-		return -1, errors.New("can't determine Windows version")
+		return -1, errCanNotDetermineVersion
 	}
 
 	return strconv.ParseFloat(versionSems[0], 64)
