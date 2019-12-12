@@ -30,6 +30,7 @@ const (
 func getVersion() (float64, error) {
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 	cmd := exec.Command("cmd", "ver")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	err := cmd.Run()
