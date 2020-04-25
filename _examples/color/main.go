@@ -1,16 +1,19 @@
 package main
 
 import (
-	"github.com/kataras/pio"
 	"os"
+
+	"github.com/kataras/pio"
 )
 
 func main() {
+	// pio will automatically detect the operating system/terminal which
+	// is running under and will provide color support.
 	p := pio.NewTextPrinter("color", os.Stdout)
-	p.Println(pio.Blue("this is a blue text"))
-	p.Println(pio.Gray("this is a gray text"))
-	p.Println(pio.Red("this is a red text"))
-	p.Println(pio.Purple("this is a purple text"))
-	p.Println(pio.Yellow("this is a yellow text"))
-	p.Println(pio.Green("this is a green text"))
+	p.Println(pio.Rich("this is a blue text", pio.Blue))
+	p.Println(pio.Rich("this is a gray text", pio.Gray))
+	p.Println(pio.Rich("this is a red text", pio.Red))
+	p.Println(pio.Rich("this is a purple text", pio.Magenta))
+	p.Println(pio.Rich("this is a yellow text", pio.Yellow))
+	p.Println(pio.Rich("this is a green text", pio.Green))
 }
