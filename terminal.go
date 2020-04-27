@@ -7,11 +7,12 @@ import (
 	"github.com/kataras/pio/terminal"
 )
 
-func isTerminal(output io.Writer) bool {
-	isTerminal := !IsNop(output) || terminal.IsTerminal(output)
+// SupportColors reports whether the "w" io.Writer is not a file and it does support colors.
+func SupportColors(w io.Writer) bool {
+	isTerminal := !IsNop(w) || terminal.IsTerminal(w)
 	if isTerminal && runtime.GOOS == "windows" {
 		// if on windows then return true only when it does support 256-bit colors,
-		// this is why we initially do that terminal check for the "output" writer.
+		// this is why we initially do that terminal check for the "w" writer.
 		return terminal.SupportColors
 	}
 

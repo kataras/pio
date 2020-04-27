@@ -84,7 +84,7 @@ func NewPrinter(name string, output io.Writer) *Printer {
 
 	buf := &bytes.Buffer{}
 
-	isOuputTerminal := isTerminal(output)
+	isOuputTerminal := SupportColors(output)
 
 	p := &Printer{
 		Name:       name,
