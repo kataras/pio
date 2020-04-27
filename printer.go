@@ -29,14 +29,27 @@ type Printer struct {
 	// if Chained is true then the parent `Registry#Print`
 	// will continue to search for a compatible printer
 	// even if this printer succeed to print the contents.
-	Chained  bool
-	Output   io.Writer
+	Chained bool
+	Output  io.Writer
+
+	// The "outputs" field holds the total writers,
+	// the "Output" and any writer added by an `AddOutput` call.
+	// The `AddOutput` method sets the Output to a new `io.MultiWriter`
+	// but the underline struct is unexported therefore we don't have access to
+	// to the total writers. However sometimes, we need those writers.
+	// E.g. for the `WriteRich` feature;
+	// in order to write color symbols in the writers that support 256-bit colors
+	// and write raw text to those that do not (e.g. files).
+	// Note: we could implementing our own multi writer and skip the use
+	// of the std package, but let's don't do that unless is requested.
+	outputs []io.Writer
+
 	mu       sync.Mutex
 	marshal  MarshalerFunc
 	hijack   Hijacker
 	handlers []Handler
 
-	// these three will complete the interface of the:
+	// These three will complete the interface of the:
 	// https://golang.org/pkg/io/#ReadWriteCloser
 	// in order to make possible to use everything inside the `io` package.
 	// i.e
@@ -89,6 +102,7 @@ func NewPrinter(name string, output io.Writer) *Printer {
 	p := &Printer{
 		Name:       name,
 		Output:     output,
+		outputs:    []io.Writer{output},
 		Writer:     buf,
 		Reader:     buf,
 		Closer:     NopCloser(),
@@ -233,7 +247,10 @@ func (p *Printer) AddOutput(writers ...io.Writer) *Printer {
 		}
 	}
 
+	p.outputs = append(p.outputs, writers...)
+
 	w := io.MultiWriter(append(writers, p.Output)...)
+
 	p.Output = w
 	return p
 
@@ -270,6 +287,7 @@ func (p *Printer) SetOutput(writers ...io.Writer) *Printer {
 	}
 
 	p.mu.Lock()
+	p.outputs = writers
 	p.Output = w
 	p.IsTerminal = terminal.IsTerminal(w)
 	p.mu.Unlock()
@@ -378,29 +396,21 @@ func (p *Printer) Store(v interface{}, appendNewLine bool) error {
 	return err
 }
 
+// Write implements the io.Writer for the `Printer`.
+func (p *Printer) Write(b []byte) (int, error) {
+	if p.DirectOutput {
+		return p.Output.Write(b)
+	}
+
+	return p.Writer.Write(b)
+}
+
 // WriteTo marshals and writes the "v" to the "w" writer.
 //
 // Returns this WriteTo's result information such as error, written.
 func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byte, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	var marshaler Marshaler
-
-	// check if implements the Marshaled
-	if m, ok := v.(Marshaled); ok {
-		marshaler = fromMarshaled(m)
-		// check if implements the Marshaler
-	} else if m, ok := v.(Marshaler); ok {
-		marshaler = m
-		// otherwise make check if printer has a marshaler
-		// if not skip this WriteTo operation,
-		// else set the marshaler to that (most common).
-	} else {
-		if p.marshal != nil {
-			marshaler = p.marshal
-		}
-	}
 
 	var (
 		b   []byte
@@ -418,14 +428,34 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byt
 		}
 
 		b, err = ctx.marshalResult.b, ctx.marshalResult.err
-
 		if err != nil {
+			if err == ErrHandled {
+				return b, nil
+			}
+
 			return b, err
 		}
 	}
 
 	// needs marshal
 	if len(b) == 0 {
+		var marshaler Marshaler
+
+		// check if implements the Marshaled
+		if m, ok := v.(Marshaled); ok {
+			marshaler = fromMarshaled(m)
+			// check if implements the Marshaler
+		} else if m, ok := v.(Marshaler); ok {
+			marshaler = m
+			// otherwise make check if printer has a marshaler
+			// if not skip this WriteTo operation,
+			// else set the marshaler to that (most common).
+		} else {
+			if p.marshal != nil {
+				marshaler = p.marshal
+			}
+		}
+
 		if marshaler == nil {
 			return nil, ErrSkipped
 		}

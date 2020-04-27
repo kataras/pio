@@ -2,6 +2,7 @@ package pio
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -28,6 +29,17 @@ const (
 	toBase256Bright = "\x1b[38;5;%d;1m%s\x1b[0m"
 )
 
+// RichOption declares a function which can be passed to the `Rich` function
+// to modify a text.
+//
+// Builtin options are defined below:
+// - `Bright`
+// - `Background`
+// - `Bold`
+// - `Underline` and
+// - `Reversed`.
+type RichOption func(s *string, colorCode *int, format *string)
+
 // Rich accepts "s" text and a "colorCode" (e.g. `Black`, `Green`, `Magenta`, `Cyan`...)
 // and optional formatters and returns a colorized (and decorated) string text that it's ready
 // to be printed through a compatible terminal.
@@ -38,7 +50,11 @@ const (
 // - Bold
 // - Underline
 // - Reversed
-func Rich(s string, colorCode int, options ...func(s *string, colorCode *int, format *string)) string {
+func Rich(s string, colorCode int, options ...RichOption) string {
+	if s == "" {
+		return ""
+	}
+
 	format := toBase8
 
 	if colorCode < Black || colorCode > 10+White {
@@ -50,6 +66,43 @@ func Rich(s string, colorCode int, options ...func(s *string, colorCode *int, fo
 	}
 
 	return fmt.Sprintf(format, colorCode, s)
+}
+
+// WriteRich same as `Rich` but it accepts an `io.Writer` to write to, e.g. a `StringBuilder` or a `pio.Printer`.
+func WriteRich(w io.Writer, s string, colorCode int, options ...RichOption) {
+	if s == "" {
+		return
+	}
+
+	if p, ok := w.(*Printer); ok {
+		var (
+			richBytes, rawBytes []byte
+		)
+
+		for _, output := range p.outputs {
+			if SupportColors(output) {
+				if len(richBytes) == 0 {
+					richBytes = []byte(Rich(s, colorCode, options...))
+				}
+
+				_, _ = output.Write(richBytes)
+			} else {
+				if len(rawBytes) == 0 {
+					rawBytes = []byte(s)
+				}
+
+				_, _ = output.Write(rawBytes)
+			}
+		}
+
+		return
+	}
+
+	if SupportColors(w) {
+		s = Rich(s, colorCode, options...)
+	}
+
+	_, _ = fmt.Fprint(w, s)
 }
 
 // Bright sets a "bright" or "bold" style to the colorful text.
