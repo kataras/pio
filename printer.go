@@ -42,7 +42,7 @@ type Printer struct {
 	// and write raw text to those that do not (e.g. files).
 	// Note: we could implementing our own multi writer and skip the use
 	// of the std package, but let's don't do that unless is requested.
-	outputs []io.Writer
+	outputs []*outputWriter
 
 	mu       sync.Mutex
 	marshal  MarshalerFunc
@@ -102,7 +102,7 @@ func NewPrinter(name string, output io.Writer) *Printer {
 	p := &Printer{
 		Name:       name,
 		Output:     output,
-		outputs:    []io.Writer{output},
+		outputs:    wrapWriters(output),
 		Writer:     buf,
 		Reader:     buf,
 		Closer:     NopCloser(),
@@ -247,7 +247,7 @@ func (p *Printer) AddOutput(writers ...io.Writer) *Printer {
 		}
 	}
 
-	p.outputs = append(p.outputs, writers...)
+	p.outputs = append(p.outputs, wrapWriters(writers...)...)
 
 	w := io.MultiWriter(append(writers, p.Output)...)
 
@@ -287,7 +287,7 @@ func (p *Printer) SetOutput(writers ...io.Writer) *Printer {
 	}
 
 	p.mu.Lock()
-	p.outputs = writers
+	p.outputs = wrapWriters(writers...)
 	p.Output = w
 	p.IsTerminal = terminal.IsTerminal(w)
 	p.mu.Unlock()

@@ -82,7 +82,7 @@ func WriteRich(w io.Writer, s string, colorCode int, options ...RichOption) {
 		for _, output := range p.outputs {
 			if SupportColors(output) {
 				if len(richBytes) == 0 {
-					richBytes = []byte(Rich(s, colorCode, options...))
+					richBytes = []byte(Rich(s, colorCode, options...)) // no strToBytes; colors are conflicting with --race detector.
 				}
 
 				_, _ = output.Write(richBytes)
