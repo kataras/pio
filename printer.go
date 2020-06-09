@@ -62,6 +62,8 @@ type Printer struct {
 	// without storing them to the buffer to complete the `ReadWriteCloser` std interface.
 	// Enable this if you need performance and you don't use the standard functions like `TeeReader`.
 	DirectOutput bool
+	//protect the writer with a lock. See SetSync(bool).
+	sync bool
 }
 
 var (
@@ -305,6 +307,14 @@ func (p *Printer) EnableDirectOutput() *Printer {
 	return p
 }
 
+// SetSync protects the output writer(s) with a lock.
+func (p *Printer) SetSync(useLocks bool) *Printer {
+	p.mu.Lock()
+	p.sync = true
+	p.mu.Unlock()
+	return p
+}
+
 // Print of a Printer accepts a value of "v",
 // tries to marshal its contents and flushes the result
 // to the Printer's output.
@@ -332,6 +342,11 @@ func (p *Printer) print(v interface{}, appendNewLine bool) (int, error) {
 		b   []byte
 		err error
 	)
+
+	if p.sync {
+		p.mu.Lock()
+	}
+
 	if p.DirectOutput {
 		b, err = p.WriteTo(v, p.Output, appendNewLine)
 	} else {
@@ -353,6 +368,10 @@ func (p *Printer) print(v interface{}, appendNewLine bool) (int, error) {
 			// let end-developer decide the pattern.
 			h(res)
 		}
+	}
+
+	if p.sync {
+		p.mu.Unlock()
 	}
 
 	return len(b), err
@@ -397,12 +416,22 @@ func (p *Printer) Store(v interface{}, appendNewLine bool) error {
 }
 
 // Write implements the io.Writer for the `Printer`.
-func (p *Printer) Write(b []byte) (int, error) {
-	if p.DirectOutput {
-		return p.Output.Write(b)
+func (p *Printer) Write(b []byte) (n int, err error) {
+	if p.sync {
+		p.mu.Lock()
 	}
 
-	return p.Writer.Write(b)
+	if p.DirectOutput {
+		n, err = p.Output.Write(b)
+	} else {
+		n, err = p.Writer.Write(b)
+	}
+
+	if p.sync {
+		p.mu.Unlock()
+	}
+
+	return
 }
 
 // WriteTo marshals and writes the "v" to the "w" writer.
