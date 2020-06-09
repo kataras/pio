@@ -62,8 +62,7 @@ type Printer struct {
 	// without storing them to the buffer to complete the `ReadWriteCloser` std interface.
 	// Enable this if you need performance and you don't use the standard functions like `TeeReader`.
 	DirectOutput bool
-	//protect the writer with a lock. See SetSync(bool).
-	sync bool
+	sync         bool // See `SetSync`.
 }
 
 var (
@@ -157,25 +156,6 @@ func (p *Printer) Priority(prio int) *Printer {
 	return p
 }
 
-// EnableNewLine adds a new line when needed, defaults to false
-// you should turn it to on if you use a custom marshaler in a printer
-// which prints to a terminal.
-// var EnableNewLine = false
-
-// func (p *Printer) addNewLineInneed(b []byte) []byte {
-// 	if !EnableNewLine {
-// 		return b
-// 	}
-
-// 	if l := len(b); l > 2 {
-// 		// if is terminal add new line and hasn't \n already
-// 		if p.IsTerminal && !bytes.Equal(b[l-1:], newLine) {
-// 			b = append(b, newLine...)
-// 		}
-// 	}
-// 	return b
-// }
-
 // Marshal adds a "marshaler" to the printer.
 // Returns itself.
 func (p *Printer) Marshal(marshaler Marshaler) *Printer {
@@ -255,22 +235,6 @@ func (p *Printer) AddOutput(writers ...io.Writer) *Printer {
 
 	p.Output = w
 	return p
-
-	// p.mu.Lock()
-	// oldW := p.Output
-	// newW := io.MultiWriter(writers...)
-	// p.Output = writerFunc(func(p []byte) (n int, err error) {
-	// 	n, err = oldW.Write(p)
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	if n != len(p) {
-	// 		err = io.ErrShortWrite
-	// 		return
-	// 	}
-	// 	return newW.Write(p)
-	// })
-	// p.mu.Unlock()
 }
 
 // SetOutput sets accepts one or more io.Writer
@@ -315,6 +279,18 @@ func (p *Printer) SetSync(useLocks bool) *Printer {
 	return p
 }
 
+func (p *Printer) lock() {
+	if p.sync {
+		p.mu.Lock()
+	}
+}
+
+func (p *Printer) unlock() {
+	if p.sync {
+		p.mu.Unlock()
+	}
+}
+
 // Print of a Printer accepts a value of "v",
 // tries to marshal its contents and flushes the result
 // to the Printer's output.
@@ -343,17 +319,14 @@ func (p *Printer) print(v interface{}, appendNewLine bool) (int, error) {
 		err error
 	)
 
-	if p.sync {
-		p.mu.Lock()
-	}
-
 	if p.DirectOutput {
 		b, err = p.WriteTo(v, p.Output, appendNewLine)
 	} else {
-		err = p.Store(v, appendNewLine) // write to the buffer
+		_, err = p.WriteTo(v, p.Writer, appendNewLine)
 		if err != nil {
 			return -1, err
 		}
+
 		b, err = p.Flush()
 	}
 
@@ -370,10 +343,6 @@ func (p *Printer) print(v interface{}, appendNewLine bool) (int, error) {
 		}
 	}
 
-	if p.sync {
-		p.mu.Unlock()
-	}
-
 	return len(b), err
 }
 
@@ -387,10 +356,10 @@ func (p *Printer) readAndConsume() ([]byte, error) {
 
 // Flush will consume and flush the Printer's current contents.
 func (p *Printer) Flush() ([]byte, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	b, err := p.readAndConsume()
+	p.lock()
+	defer p.unlock()
 
+	b, err := p.readAndConsume()
 	if err != nil {
 		return nil, err
 	}
@@ -411,26 +380,18 @@ func (p *Printer) Flush() ([]byte, error) {
 // of the implementation like custom hijackers and handlers.
 func (p *Printer) Store(v interface{}, appendNewLine bool) error {
 	_, err := p.WriteTo(v, p.Writer, appendNewLine)
-
 	return err
 }
 
 // Write implements the io.Writer for the `Printer`.
 func (p *Printer) Write(b []byte) (n int, err error) {
-	if p.sync {
-		p.mu.Lock()
-	}
-
+	p.lock()
 	if p.DirectOutput {
 		n, err = p.Output.Write(b)
 	} else {
 		n, err = p.Writer.Write(b)
 	}
-
-	if p.sync {
-		p.mu.Unlock()
-	}
-
+	p.unlock()
 	return
 }
 
@@ -438,9 +399,6 @@ func (p *Printer) Write(b []byte) (n int, err error) {
 //
 // Returns this WriteTo's result information such as error, written.
 func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byte, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	var (
 		b   []byte
 		err error
@@ -495,10 +453,12 @@ func (p *Printer) WriteTo(v interface{}, w io.Writer, appendNewLine bool) ([]byt
 		}
 	}
 
+	p.lock()
 	_, err = w.Write(b)
 	if appendNewLine && err == nil {
 		w.Write(NewLine) // we don't care about this error.
 	}
+	p.unlock()
 	return b, err
 }
 
