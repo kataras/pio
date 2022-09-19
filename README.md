@@ -2,7 +2,7 @@
 
 PIO [_Pill for Input/Output_] tries to cure headaches by solving problems where [go](https://golang.org) applications use different kinds of print targets or even loggers.
 
-[![build status](https://img.shields.io/github/workflow/status/kataras/pio/CI/master?style=for-the-badge)](https://github.com/kataras/pio/actions)
+[![build status](https://img.shields.io/github/workflow/status/kataras/pio/CI/master?style=flat-square)](https://github.com/kataras/pio/actions)
 [![report card](https://img.shields.io/badge/report%20card-a%2B-ff3333.svg?style=flat-square)](http://goreportcard.com/report/kataras/pio)
 [![godocs](https://img.shields.io/badge/online-documentation-0366d6.svg?style=flat-square)](https://pkg.go.dev/github.com/kataras/pio)
 [![github issues](https://img.shields.io/github/issues/kataras/pio.svg?style=flat-square)](https://github.com/kataras/pio/issues?q=is%3Aopen+is%3Aissue)
