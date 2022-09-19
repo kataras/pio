@@ -11,9 +11,10 @@ import (
 //
 // It can be used as follows:
 // reg := NewRegistry().
-//        RegisterPrinter(NewPrinter("err", os.Stderr)).
-//        RegisterPrinter(NewPrinter("default", os.Stdout)).
-//        Print("something")
+//
+//	RegisterPrinter(NewPrinter("err", os.Stderr)).
+//	RegisterPrinter(NewPrinter("default", os.Stdout)).
+//	Print("something")
 type Registry struct {
 	// can change via `Register` or `RegisterPrinter` with mutex.
 	// whenever a tool needs an `io.Writer` to do something

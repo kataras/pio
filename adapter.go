@@ -28,9 +28,10 @@ func (w writerFunc) Write(p []byte) (n int, err error) {
 // std's log.Panicf is not a compatible interface
 //
 // output := Output(log.Panicf)
-// if IsNop(output) {
-//	// conversation failed, do something or panic.
-//}
+//
+//	if IsNop(output) {
+//		// conversation failed, do something or panic.
+//	}
 func Wrap(printFn interface{}) io.Writer {
 	switch printFn.(type) {
 	case io.Writer:

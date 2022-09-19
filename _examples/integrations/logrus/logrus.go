@@ -2,12 +2,9 @@
 Package logrus registers the global logrus logger to the pio ecosystem,
 install logrus first:
 
-
 	$ go get github.com/
 
-
 Example Code:
-
 
 	package main
 
@@ -19,7 +16,6 @@ Example Code:
 	func main() {
 		pio.Print("This is an info message that will be printed to the logrus' output")
 	}
-
 */
 package logrus
 

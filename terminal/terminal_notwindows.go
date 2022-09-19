@@ -1,3 +1,4 @@
+//go:build (linux || darwin || freebsd || openbsd || netbsd || dragonfly) && !appengine
 // +build linux darwin freebsd openbsd netbsd dragonfly
 // +build !appengine
 
